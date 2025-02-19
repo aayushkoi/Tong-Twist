@@ -33,5 +33,5 @@ Tongue Twister, a language learning platform that connects learners with expert 
 
 ## Future Feature Ideas
 - **Gen AI Language Helper Chatbot**: AI-powered chatbot for on-demand language practice
-- **Omegle-Style Quick Practice**: Randomized language practice with users worldwide
+- **Omegle-Style Quick Practice**: Language practice with users worldwide --> quick 3-minute back and forth with users with orthogonal language choices.
 
