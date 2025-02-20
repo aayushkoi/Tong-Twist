@@ -19,6 +19,7 @@ const servers = {
 export default function VideoCall() {
   const [pc] = useState(new RTCPeerConnection(servers));
   const [callId, setCallId] = useState("");
+  const [remoteCallId, setRemoteCallId] = useState(""); // Separate state for answering calls
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const [isWebcamStarted, setIsWebcamStarted] = useState(false);
@@ -41,9 +42,9 @@ export default function VideoCall() {
 
   const createCall = async () => {
     const callDoc = doc(collection(firestore, "calls"));
-    setCallId(callDoc.id);
-    const offerCandidates = collection(callDoc, "offerCandidates");
-    const answerCandidates = collection(callDoc, "answerCandidates");
+    setCallId(callDoc.id); // Set the call ID for the creator
+    const offerCandidates = collection(firestore, "calls", callDoc.id, "offerCandidates");
+    const answerCandidates = collection(firestore, "calls", callDoc.id, "answerCandidates");
 
     pc.onicecandidate = (event) => {
       if (event.candidate) {
@@ -53,7 +54,13 @@ export default function VideoCall() {
 
     const offerDescription = await pc.createOffer();
     await pc.setLocalDescription(offerDescription);
-    await setDoc(callDoc, { offer: offerDescription });
+
+    const offer = {
+      sdp: offerDescription.sdp,
+      type: offerDescription.type,
+    };
+
+    await setDoc(callDoc, { offer });
 
     onSnapshot(callDoc, (snapshot) => {
       const data = snapshot.data();
@@ -72,21 +79,35 @@ export default function VideoCall() {
   };
 
   const answerCall = async () => {
-    if (!callId) return;
-    const callDoc = doc(firestore, "calls", callId);
-    const offerCandidates = collection(callDoc, "offerCandidates");
-    const answerCandidates = collection(callDoc, "answerCandidates");
+    if (!remoteCallId) return;
+
+    const callDoc = doc(firestore, "calls", remoteCallId);
+    const offerCandidates = collection(firestore, "calls", remoteCallId, "offerCandidates");
+    const answerCandidates = collection(firestore, "calls", remoteCallId, "answerCandidates");
 
     const callSnapshot = await getDoc(callDoc);
-    if (!callSnapshot.exists()) return;
+    if (!callSnapshot.exists()) {
+      alert("Call not found!");
+      return;
+    }
 
     const offerDescription = callSnapshot.data().offer;
+    if (!offerDescription) {
+      alert("No offer found in the call document!");
+      return;
+    }
+
     await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
 
     const answerDescription = await pc.createAnswer();
     await pc.setLocalDescription(answerDescription);
 
-    await setDoc(callDoc, { answer: answerDescription }, { merge: true });
+    const answer = {
+      type: answerDescription.type,
+      sdp: answerDescription.sdp,
+    };
+
+    await setDoc(callDoc, { answer }, { merge: true });
 
     onSnapshot(offerCandidates, (snapshot) => {
       snapshot.docChanges().forEach((change) => {
@@ -104,42 +125,65 @@ export default function VideoCall() {
   };
 
   return (
-    <div style={{ color: "black" }}>
-      <h2>1. Start your Webcam</h2>
-      <div className="videos">
-        <span>
-          <h3>Local Stream</h3>
-          <video ref={localVideoRef} autoPlay playsInline></video>
-        </span>
-        <span>
-          <h3>Remote Stream</h3>
-          <video ref={remoteVideoRef} autoPlay playsInline></video>
-        </span>
+    <div className="min-h-screen bg-quizlet-gray flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-4xl bg-white rounded-lg shadow-md p-8">
+        <h1 className="text-2xl font-bold text-quizlet-blue text-center mb-6">Video Call</h1>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-quizlet-blue mb-2">Your Video</h2>
+            <video
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              className="w-full rounded-lg"
+            />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-quizlet-blue mb-2">Remote Video</h2>
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              className="w-full rounded-lg"
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-col space-y-4">
+          <button
+            onClick={startWebcam}
+            disabled={isWebcamStarted}
+            className="w-full bg-quizlet-blue text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            Start Webcam
+          </button>
+
+          <button
+            onClick={createCall}
+            disabled={!isWebcamStarted}
+            className="w-full bg-quizlet-blue text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+          >
+            Create Call (Offer)
+          </button>
+
+          <div className="flex items-center gap-4">
+            <input
+              value={remoteCallId}
+              onChange={(e) => setRemoteCallId(e.target.value)}
+              placeholder="Enter Call ID"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-quizlet-blue focus:border-quizlet-blue outline-none transition"
+            />
+            <button
+              onClick={answerCall}
+              disabled={!isWebcamStarted}
+              className="bg-quizlet-blue text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+            >
+              Answer
+            </button>
+          </div>
+        </div>
       </div>
-
-      <button onClick={startWebcam} disabled={isWebcamStarted}>
-        Start webcam
-      </button>
-
-      <h2>2. Create a new Call</h2>
-      <button onClick={createCall} disabled={!isWebcamStarted}>
-        Create Call (offer)
-      </button>
-
-      <h2>3. Join a Call</h2>
-      <p>Answer the call from a different browser window or device</p>
-
-      <input
-        value={callId}
-        onChange={(e) => setCallId(e.target.value)}
-        placeholder="Enter Call ID"
-      />
-      <button onClick={answerCall} disabled={!isWebcamStarted}>
-        Answer
-      </button>
-
-      <h2>4. Hangup</h2>
-      <button disabled>Hangup</button>
     </div>
   );
 }
