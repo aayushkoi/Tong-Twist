@@ -9,8 +9,9 @@ import {
   getDoc,
   onSnapshot,
   addDoc,
+  getDocs, 
+  deleteDoc,
 } from "firebase/firestore";
-
 const servers = {
   iceServers: [{ urls: ["stun:stun.l.google.com:19302"] }],
   iceCandidatePoolSize: 10,
@@ -133,8 +134,30 @@ export default function VideoCall() {
     setIsWebcamStarted(false);
     // Reinitialize the peer connection for future calls
     setPc(new RTCPeerConnection(servers));
+  
+    // Delete Firestore documents related to the call
+    if (callId) {
+      const callDoc = doc(firestore, "calls", callId);
+      const offerCandidates = collection(callDoc, "offerCandidates");
+      const answerCandidates = collection(callDoc, "answerCandidates");
+  
+      // Delete all offer candidates
+      const offerSnapshot = await getDocs(offerCandidates);
+      offerSnapshot.forEach(async (doc) => {
+        await deleteDoc(doc.ref);
+      });
+  
+      // Delete all answer candidates
+      const answerSnapshot = await getDocs(answerCandidates);
+      answerSnapshot.forEach(async (doc) => {
+        await deleteDoc(doc.ref);
+      });
+  
+      // Delete the call document itself
+      await deleteDoc(callDoc);
+    }
   };
-
+  
   const copyCallId = async () => {
     try {
       await navigator.clipboard.writeText(callId);
