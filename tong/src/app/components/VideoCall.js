@@ -162,7 +162,7 @@ export default function VideoCall() {
               autoPlay
               playsInline
               muted
-              className="w-full h-96 rounded-lg bg-black object-cover"
+              className="w-full h-96 rounded-lg bg-transparent object-cover"
             />
           </div>
           <div>
@@ -173,7 +173,7 @@ export default function VideoCall() {
               ref={remoteVideoRef}
               autoPlay
               playsInline
-              className="w-full h-96 rounded-lg bg-black object-cover"
+              className="w-full h-96 rounded-lg bg-transparent object-cover"
             />
           </div>
         </div>
