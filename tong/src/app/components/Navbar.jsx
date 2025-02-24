@@ -28,35 +28,39 @@ export default function Navbar() {
         <div className="flex items-center gap-4">
           {loading ? (
             <div className="text-white">Loading...</div>
-          ) : user ? (
-            <>
-              <Link 
-                href="/dashboard" 
-                className="text-white hover:text-gray-200 transition-colors"
-              >
-                Dashboard
-              </Link>
-              <button
-                onClick={handleLogout}
-                className="bg-white text-quizlet-blue py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                Logout
-              </button>
-            </>
           ) : (
             <>
-              <Link 
-                href="/login" 
-                className="text-white hover:text-gray-200 transition-colors"
-              >
-                Login
-              </Link>
-              <Link 
-                href="/register" 
-                className="bg-white text-quizlet-blue py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                Register
-              </Link>
+              {user ? (
+                <>
+                  <Link 
+                    href="/dashboard" 
+                    className="text-white hover:text-gray-200 transition-colors"
+                  >
+                    Dashboard
+                  </Link>
+                  <button
+                    onClick={handleLogout}
+                    className="bg-white text-quizlet-blue py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link 
+                    href="/login" 
+                    className="text-white hover:text-gray-200 transition-colors"
+                  >
+                    Login
+                  </Link>
+                  <Link 
+                    href="/register" 
+                    className="bg-white text-quizlet-blue py-2 px-4 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    Register
+                  </Link>
+                </>
+              )}
             </>
           )}
         </div>

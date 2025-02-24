@@ -9,8 +9,8 @@ export default function CallRoomPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="p-4 text-center">
-        <h1 className="text-2xl font-bold">Video Call Room</h1>
-        <p>Room ID: {roomId}</p>
+        <h1 className="text-2xl text-gray-900 font-bold">Video Call Room</h1>
+        <p className="text-gray-900">Room ID: {roomId}</p>
       </header>
       <VideoCall roomId={roomId} />
     </div>

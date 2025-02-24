@@ -1,6 +1,4 @@
-// src/app/components/VideoCall.js
 "use client";
-
 import { useState, useRef, useEffect } from "react";
 import { firestore } from "@/fb/firebase";
 import { collection, doc, setDoc, getDoc, onSnapshot, addDoc, deleteDoc, getDocs } from "firebase/firestore";
@@ -146,30 +144,50 @@ export default function VideoCall({ roomId }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-4xl bg-white rounded-lg shadow-md p-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <h2 className="text-lg font-semibold mb-2">Local Stream</h2>
-            <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-96 rounded-lg bg-black" />
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-4xl bg-white rounded-lg shadow-lg p-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-800 mb-3">Local Stream</h2>
+            <video
+              ref={localVideoRef}
+              autoPlay
+              playsInline
+              muted
+              className="w-full h-64 md:h-96 rounded-lg bg-gray-200"
+            />
           </div>
-          <div>
-            <h2 className="text-lg font-semibold mb-2">Remote Stream</h2>
-            <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-96 rounded-lg bg-black" />
+          <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-800 mb-3">Remote Stream</h2>
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              className="w-full h-64 md:h-96 rounded-lg bg-gray-200"
+            />
           </div>
         </div>
-        <div className="mt-6 flex flex-col items-center space-y-4">
+        <div className="mt-8 flex flex-col items-center space-y-4">
           {!isWebcamStarted && (
-            <button onClick={startWebcam} className="bg-blue-500 text-white px-4 py-2 rounded">
+            <button
+              onClick={startWebcam}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-lg transition-colors"
+            >
               Start Webcam
             </button>
           )}
           {isWebcamStarted && (
-            <button onClick={joinCall} className="bg-green-500 text-white px-4 py-2 rounded">
+            <button
+              onClick={joinCall}
+              className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-2 rounded-lg transition-colors"
+            >
               Join Call
             </button>
           )}
-          <button onClick={hangupCall} className="bg-red-600 text-white px-4 py-2 rounded">
+          <button
+            onClick={hangupCall}
+            className="bg-red-600 hover:bg-red-700 text-white font-medium px-6 py-2 rounded-lg transition-colors"
+          >
             Hangup
           </button>
         </div>

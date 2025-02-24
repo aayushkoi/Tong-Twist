@@ -41,7 +41,7 @@ export default function Dashboard() {
   if (loading || !userData) {
     return (
       <div className="min-h-screen bg-quizlet-gray flex items-center justify-center">
-        <p>Loading...</p>
+        <p className="text-gray-900">Loading...</p>
       </div>
     );
   }
@@ -54,7 +54,7 @@ export default function Dashboard() {
             Welcome {role === "learner" ? "Learner" : "Teacher"},{" "}
             {userData?.displayName || user?.email}!
           </h1>
-          <p className="mt-2 text-gray-600">
+          <p className="mt-2 text-gray-700">
             {role === "learner"
               ? "Improve your language skills with expert teachers"
               : "Help learners improve their language proficiency"}
@@ -64,30 +64,30 @@ export default function Dashboard() {
         {role === "learner" ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-xl font-semibold mb-4">Request New Session</h2>
+              <h2 className="text-xl font-semibold mb-4 text-gray-900">Request New Session</h2>
               <CreateSessionRequest userId={user.uid} />
             </div>
             <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-xl font-semibold mb-4">Your Sessions</h2>
+              <h2 className="text-xl font-semibold mb-4 text-gray-900">Your Sessions</h2>
               <SessionCalendar userId={user.uid} role={role} />
             </div>
             <div className="bg-white p-6 rounded-lg shadow col-span-2">
-              <h2 className="text-xl font-semibold mb-4">Upcoming Sessions</h2>
+              <h2 className="text-xl font-semibold mb-4 text-gray-900">Upcoming Sessions</h2>
               <SessionList />
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-xl font-semibold mb-4">Session Requests</h2>
+              <h2 className="text-xl font-semibold mb-4 text-gray-900">Session Requests</h2>
               <SessionRequests userId={user.uid} role={role} />
             </div>
             <div className="bg-white p-6 rounded-lg shadow">
-              <h2 className="text-xl font-semibold mb-4">Your Schedule</h2>
+              <h2 className="text-xl font-semibold mb-4 text-gray-900">Your Schedule</h2>
               <SessionCalendar userId={user.uid} role={role} />
             </div>
             <div className="bg-white p-6 rounded-lg shadow col-span-2">
-              <h2 className="text-xl font-semibold mb-4">Upcoming Sessions</h2>
+              {/* <h2 className="text-xl font-semibold mb-4 text-gray-900">Upcoming Sessions</h2> */}
               <SessionList />
             </div>
           </div>

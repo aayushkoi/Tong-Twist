@@ -10,19 +10,36 @@ export const initializePeerConnection = () => {
 export const setupFirestoreSignaling = (pc, roomId) => {
   const callDoc = doc(firestore, 'calls', roomId);
   
-  // Listen for remote ICE candidates
-  onSnapshot(collection(callDoc, 'answerCandidates'), (snapshot) => {
-    snapshot.docChanges().forEach((change) => {
-      if (change.type === 'added') {
-        pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
-      }
-    });
-  });
+  // Add error handling for ICE candidates
+  pc.onicecandidateerror = (error) => {
+    console.error("ICE candidate error:", error);
+  };
 
-  // Send local ICE candidates
+  // Listen for remote ICE candidates with error handling
+  const unsubscribeAnswer = onSnapshot(collection(callDoc, 'answerCandidates'), 
+    (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        if (change.type === 'added') {
+          try {
+            pc.addIceCandidate(new RTCIceCandidate(change.doc.data()));
+          } catch (error) {
+            console.error("Error adding answer ICE candidate:", error);
+          }
+        }
+      });
+    },
+    (error) => {
+      console.error("Answer candidates snapshot error:", error);
+    }
+  );
+
+  // Send local ICE candidates with error handling
   pc.onicecandidate = (event) => {
     if (event.candidate) {
-      addDoc(collection(callDoc, 'offerCandidates'), event.candidate.toJSON());
+      addDoc(collection(callDoc, 'offerCandidates'), event.candidate.toJSON())
+        .catch(error => console.error("Error sending ICE candidate:", error));
     }
   };
+
+  return () => unsubscribeAnswer();
 };
