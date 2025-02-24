@@ -1,9 +1,9 @@
-// tong/src/context/AuthProvider.jsx
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { auth } from "../fb/firebase";
+import { auth, firestore } from "../fb/firebase";
 import { onAuthStateChanged } from "firebase/auth";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 
 const AuthContext = createContext();
 
@@ -12,7 +12,19 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        // Check if user document exists
+        const userRef = doc(firestore, "users", user.uid);
+        const userSnapshot = await getDoc(userRef);
+        if (!userSnapshot.exists()) {
+          // Create the user document with default values if it doesn't exist
+          await setDoc(userRef, {
+            role: "learner",
+            displayName: user.displayName || user.email,
+          });
+        }
+      }
       setUser(user);
       setLoading(false);
     });

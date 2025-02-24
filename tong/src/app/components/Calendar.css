@@ -1,0 +1,103 @@
+/* src/app/components/Calendar.css */
+.custom-calendar {
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 1rem;
+    max-width: calc(100% + 10px); /* Explicitly increasing width */
+    width: 350px; /* Adjust this as needed */
+    transition: all 0.2s ease-in-out;
+}
+  
+.custom-calendar .react-calendar__navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+  
+.custom-calendar .react-calendar__navigation button {
+    background: none;
+    border: none;
+    color: #374151;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    transition: background 0.2s ease-in-out;
+}
+  
+.custom-calendar .react-calendar__navigation button:hover {
+    background-color: #f3f4f6;
+}
+  
+.custom-calendar .react-calendar__month-view__weekdays {
+    text-align: center;
+    color: #4b5563;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    letter-spacing: 1px; /* Adds spacing between letters */
+    padding: 0 5px; /* Adds horizontal padding */
+    font-size: 10px; /* Adjust font size as needed */
+}
+  
+.custom-calendar .react-calendar__month-view__days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 0.35rem; /* Slightly increased gap */
+}
+  
+.custom-calendar .react-calendar__tile {
+    background: none;
+    border: none;
+    color: #1f2937;
+    font-size: 0.875rem;
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+    display: flex; /* Use flexbox for centering */
+    align-items: center; /* Vertically center content */
+    justify-content: center; /* Horizontally center content */
+    height: 40px; /* Fixed height for consistent sizing */
+    width: 40px; /* Fixed width for consistent sizing */
+    margin: 0 auto; /* Center the tile within its grid cell */
+}
+  
+.custom-calendar .react-calendar__tile:hover {
+    background-color: #e5e7eb;
+}
+  
+.custom-calendar .react-calendar__tile--active {
+    background-color: #3b82f6;
+    color: white;
+    font-weight: bold;
+}
+  
+.custom-calendar .react-calendar__tile--now {
+    background-color: #e0f2fe;
+    color: #1f2937;
+}
+  
+.custom-calendar .react-calendar__tile--active:hover,
+.custom-calendar .react-calendar__tile--now:hover {
+    background-color: #2563eb;
+    color: white;
+}
+  
+/* Fix for mobile view - ensures tiles don't break */
+@media (max-width: 640px) {
+    .custom-calendar {
+        padding: 0.75rem;
+        width: 100%; /* Make sure it fits properly on small screens */
+    }
+
+    .custom-calendar .react-calendar__tile {
+        padding: 0.5rem;
+        font-size: 0.75rem;
+        height: 35px; /* Slightly smaller for mobile */
+        width: 35px; /* Slightly smaller for mobile */
+    }
+}

@@ -1,42 +1,37 @@
 "use client";
-
 import { useState, useRef, useEffect } from "react";
 import { firestore } from "@/fb/firebase";
-import {
-  collection,
-  doc,
-  setDoc,
-  getDoc,
-  onSnapshot,
-  addDoc,
-} from "firebase/firestore";
+import { collection, doc, setDoc, getDoc, onSnapshot, addDoc, deleteDoc, getDocs } from "firebase/firestore";
+import { initializePeerConnection, setupFirestoreSignaling } from "@/utils/webrtc";
 
-const servers = {
-  iceServers: [{ urls: ["stun:stun.l.google.com:19302"] }],
-  iceCandidatePoolSize: 10,
-};
-
-export default function VideoCall() {
-  const [pc, setPc] = useState(new RTCPeerConnection(servers));
-  const [callId, setCallId] = useState("");
-  const [copySuccess, setCopySuccess] = useState("");
+export default function VideoCall({ roomId }) {
+  const [pc, setPc] = useState(null);
+  const [callId, setCallId] = useState(roomId || "");
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
   const [isWebcamStarted, setIsWebcamStarted] = useState(false);
 
-  // Reset ontrack event when peer connection changes
+  // Initialize PeerConnection and setup signaling on mount
   useEffect(() => {
-    pc.ontrack = (event) => {
-      remoteVideoRef.current.srcObject = event.streams[0];
-    };
+    if (!roomId) return;
+    const peerConnection = initializePeerConnection();
+    setPc(peerConnection);
+    // Set up signaling with Firestore using the roomId
+    setupFirestoreSignaling(peerConnection, roomId);
+  }, [roomId]);
+
+  // Set remote video stream when available
+  useEffect(() => {
+    if (pc) {
+      pc.ontrack = (event) => {
+        remoteVideoRef.current.srcObject = event.streams[0];
+      };
+    }
   }, [pc]);
 
   const startWebcam = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       localVideoRef.current.srcObject = stream;
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
       setIsWebcamStarted(true);
@@ -45,25 +40,29 @@ export default function VideoCall() {
     }
   };
 
+  const joinCall = async () => {
+    if (!pc || !isWebcamStarted || !roomId) return;
+    const callDocRef = doc(firestore, "calls", roomId);
+    const callSnapshot = await getDoc(callDocRef);
+    if (callSnapshot.exists()) {
+      // If a call exists, answer it
+      await answerCall();
+    } else {
+      // If not, create a new call document (first caller)
+      await createCall();
+    }
+  };
+
   const createCall = async () => {
-    const callDoc = doc(collection(firestore, "calls"));
+    const callDoc = doc(firestore, "calls", roomId);
     setCallId(callDoc.id);
-    const offerCandidates = collection(callDoc, "offerCandidates");
     const answerCandidates = collection(callDoc, "answerCandidates");
 
-    // Send ICE candidates to Firestore
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        addDoc(offerCandidates, event.candidate.toJSON());
-      }
-    };
-
-    // Create offer and update call document
     const offerDescription = await pc.createOffer();
     await pc.setLocalDescription(offerDescription);
     await setDoc(callDoc, { offer: offerDescription });
 
-    // Listen for remote answer SDP
+    // Listen for remote answer
     onSnapshot(callDoc, (snapshot) => {
       const data = snapshot.data();
       if (data?.answer && !pc.currentRemoteDescription) {
@@ -71,7 +70,7 @@ export default function VideoCall() {
       }
     });
 
-    // Listen for remote ICE candidates (from answerer)
+    // Listen for remote ICE candidates (answerer)
     onSnapshot(answerCandidates, (snapshot) => {
       snapshot.docChanges().forEach((change) => {
         if (change.type === "added") {
@@ -82,23 +81,20 @@ export default function VideoCall() {
   };
 
   const answerCall = async () => {
-    if (!callId) return;
-    const callDoc = doc(firestore, "calls", callId);
+    const callDoc = doc(firestore, "calls", roomId);
     const offerCandidates = collection(callDoc, "offerCandidates");
     const answerCandidates = collection(callDoc, "answerCandidates");
 
     const callSnapshot = await getDoc(callDoc);
     if (!callSnapshot.exists()) return;
-
     const offerDescription = callSnapshot.data().offer;
     await pc.setRemoteDescription(new RTCSessionDescription(offerDescription));
 
     const answerDescription = await pc.createAnswer();
     await pc.setLocalDescription(answerDescription);
-
     await setDoc(callDoc, { answer: answerDescription }, { merge: true });
 
-    // Listen for ICE candidates from caller (offerCandidates)
+    // Listen for ICE candidates from the offerer
     onSnapshot(offerCandidates, (snapshot) => {
       snapshot.docChanges().forEach((change) => {
         if (change.type === "added") {
@@ -107,7 +103,7 @@ export default function VideoCall() {
       });
     });
 
-    // Send answer ICE candidates to Firestore
+    // Send our ICE candidates to Firestore
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         addDoc(answerCandidates, event.candidate.toJSON());
@@ -116,119 +112,81 @@ export default function VideoCall() {
   };
 
   const hangupCall = async () => {
-    // Stop all local stream tracks
-    if (localVideoRef.current && localVideoRef.current.srcObject) {
-      const tracks = localVideoRef.current.srcObject.getTracks();
-      tracks.forEach((track) => track.stop());
+    // Stop all streams
+    if (localVideoRef.current?.srcObject) {
+      localVideoRef.current.srcObject.getTracks().forEach((track) => track.stop());
     }
-    // Stop all remote stream tracks
-    if (remoteVideoRef.current && remoteVideoRef.current.srcObject) {
-      const tracks = remoteVideoRef.current.srcObject.getTracks();
-      tracks.forEach((track) => track.stop());
+    if (remoteVideoRef.current?.srcObject) {
+      remoteVideoRef.current.srcObject.getTracks().forEach((track) => track.stop());
     }
-    // Close the peer connection
     pc.close();
-    // Reset state
-    setCallId("");
     setIsWebcamStarted(false);
-    // Reinitialize the peer connection for future calls
-    setPc(new RTCPeerConnection(servers));
-  };
+    // Optionally, reset or reinitialize the connection
+    const newPc = initializePeerConnection();
+    setPc(newPc);
 
-  const copyCallId = async () => {
-    try {
-      await navigator.clipboard.writeText(callId);
-      setCopySuccess("Copied!");
-      setTimeout(() => setCopySuccess(""), 2000);
-    } catch (err) {
-      console.error("Failed to copy: ", err);
+    // Delete call document and its subcollections
+    if (roomId) {
+      const callDoc = doc(firestore, "calls", roomId);
+      const offerCandidates = collection(callDoc, "offerCandidates");
+      const answerCandidates = collection(callDoc, "answerCandidates");
+
+      const offerSnapshot = await getDocs(offerCandidates);
+      offerSnapshot.forEach(async (docSnap) => {
+        await deleteDoc(docSnap.ref);
+      });
+      const answerSnapshot = await getDocs(answerCandidates);
+      answerSnapshot.forEach(async (docSnap) => {
+        await deleteDoc(docSnap.ref);
+      });
+      await deleteDoc(callDoc);
     }
   };
 
   return (
-    <div className="min-h-screen bg-quizlet-gray flex flex-col items-center justify-center p-4">
-      <div className="w-full max-w-4xl bg-white rounded-lg shadow-md p-8">
-        <h1 className="text-2xl font-bold text-quizlet-blue text-center mb-6">
-          Video Call
-        </h1>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <h2 className="text-lg font-semibold text-quizlet-blue mb-2">
-              Local Stream
-            </h2>
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-4xl bg-white rounded-lg shadow-lg p-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-800 mb-3">Local Stream</h2>
             <video
               ref={localVideoRef}
               autoPlay
               playsInline
               muted
-              className="w-full h-96 rounded-lg bg-transparent object-cover"
+              className="w-full h-64 md:h-96 rounded-lg bg-gray-200"
             />
           </div>
-          <div>
-            <h2 className="text-lg font-semibold text-quizlet-blue mb-2">
-              Remote Stream
-            </h2>
+          <div className="bg-gray-50 p-4 rounded-lg shadow-sm">
+            <h2 className="text-lg font-semibold text-gray-800 mb-3">Remote Stream</h2>
             <video
               ref={remoteVideoRef}
               autoPlay
               playsInline
-              className="w-full h-96 rounded-lg bg-transparent object-cover"
+              className="w-full h-64 md:h-96 rounded-lg bg-gray-200"
             />
           </div>
         </div>
-
-        <div className="mt-6 space-y-4">
-          <button
-            onClick={startWebcam}
-            disabled={isWebcamStarted}
-            className="w-full bg-quizlet-blue text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
-          >
-            Start Webcam
-          </button>
-
-          <button
-            onClick={createCall}
-            disabled={!isWebcamStarted}
-            className="w-full bg-quizlet-blue text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
-          >
-            Create Call (Offer)
-          </button>
-
-          {callId && (
-            <div className="bg-gray-800 text-white p-4 rounded-lg flex items-center justify-between">
-              <span className="font-mono text-lg">{callId}</span>
-              <button
-                onClick={copyCallId}
-                className="ml-4 bg-quizlet-blue p-2 rounded hover:bg-blue-700 transition-colors"
-              >
-                📋
-              </button>
-              {copySuccess && (
-                <span className="ml-2 text-sm text-green-400">{copySuccess}</span>
-              )}
-            </div>
-          )}
-
-          <div className="flex items-center gap-4">
-            <input
-              value={callId}
-              onChange={(e) => setCallId(e.target.value)}
-              placeholder="Enter Call ID"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-            />
+        <div className="mt-8 flex flex-col items-center space-y-4">
+          {!isWebcamStarted && (
             <button
-              onClick={answerCall}
-              disabled={!isWebcamStarted}
-              className="bg-quizlet-blue text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors disabled:opacity-50"
+              onClick={startWebcam}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-2 rounded-lg transition-colors"
             >
-              Answer
+              Start Webcam
             </button>
-          </div>
-
+          )}
+          {isWebcamStarted && (
+            <button
+              onClick={joinCall}
+              className="bg-green-600 hover:bg-green-700 text-white font-medium px-6 py-2 rounded-lg transition-colors"
+            >
+              Join Call
+            </button>
+          )}
           <button
             onClick={hangupCall}
-            className="w-full bg-red-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-red-700 transition-colors"
+            className="bg-red-600 hover:bg-red-700 text-white font-medium px-6 py-2 rounded-lg transition-colors"
           >
             Hangup
           </button>
