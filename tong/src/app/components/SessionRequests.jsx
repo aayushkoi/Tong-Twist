@@ -2,32 +2,45 @@
 import { useState, useEffect } from 'react';
 import { firestore } from "@/fb/firebase";
 import { collection, query, where, onSnapshot, doc, updateDoc, addDoc } from "firebase/firestore";
+import { useAuth } from "../../context/AuthProvider";
 
-export default function SessionRequests({ userId, role }) {
+export default function SessionRequests({ role }) {
+  const { user } = useAuth();
   const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (role === 'expert') {
+    let unsubscribe = () => {};
+    
+    if (user && role === 'expert') {
       const q = query(
         collection(firestore, "sessionRequests"),
         where("status", "==", "pending") // Only show pending requests
       );
 
-      const unsubscribe = onSnapshot(q, (snapshot) => {
+      unsubscribe = onSnapshot(q, (snapshot) => {
         const requestsData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data(),
-          startTime: doc.data().startTime.toDate(),
-          endTime: doc.data().endTime.toDate(),
+          startTime: doc.data().startTime?.toDate() || new Date(),
+          endTime: doc.data().endTime?.toDate() || new Date(),
         }));
         setRequests(requestsData);
+        setLoading(false);
+      }, error => {
+        console.error("Error fetching session requests:", error);
+        setLoading(false);
       });
-
-      return () => unsubscribe();
+    } else {
+      setLoading(false);
     }
-  }, [role]);
+
+    return () => unsubscribe();
+  }, [user, role]);
 
   const handleAccept = async (request) => {
+    if (!user) return;
+    
     try {
       // Create a new session in the "sessions" collection
       await addDoc(collection(firestore, "sessions"), {
@@ -35,19 +48,26 @@ export default function SessionRequests({ userId, role }) {
         startTime: request.startTime,
         endTime: request.endTime,
         learnerId: request.learnerId,
-        expertId: userId,
+        expertId: user.uid,
         roomId: `room-${crypto.randomUUID()}`, // Generate a unique room ID
+        status: 'scheduled',
+        createdAt: new Date()
       });
 
       // Update the request status to "accepted"
       await updateDoc(doc(firestore, "sessionRequests", request.id), {
         status: 'accepted',
-        expertId: userId,
+        expertId: user.uid,
+        updatedAt: new Date()
       });
     } catch (error) {
       console.error("Error accepting request:", error);
     }
   };
+
+  if (loading) {
+    return <p className="text-gray-600">Loading requests...</p>;
+  }
 
   return (
     <div className="space-y-4">
@@ -57,7 +77,7 @@ export default function SessionRequests({ userId, role }) {
           <p className="text-sm text-gray-700">
             {request.startTime.toLocaleString()} - {request.endTime.toLocaleString()}
           </p>
-          {role === 'expert' && (
+          {user && role === 'expert' && (
             <button
               onClick={() => handleAccept(request)}
               className="mt-2 bg-green-500 text-white py-1 px-3 rounded-md hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"

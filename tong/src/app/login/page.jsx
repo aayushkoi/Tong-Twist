@@ -1,34 +1,50 @@
-// tong/src/app/login/page.jsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { auth } from "../../fb/firebase";
-import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { signInWithEmailAndPassword, signInWithPopup, GoogleAuthProvider, onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
   const provider = new GoogleAuthProvider();
 
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        router.push("/dashboard");
+      }
+    });
+
+    return () => unsubscribe();
+  }, [router]);
+
   const handleEmailLogin = async (e) => {
     e.preventDefault();
+    setLoading(true);
     try {
       await signInWithEmailAndPassword(auth, email, password);
       router.push("/dashboard");
     } catch (error) {
       setError("Invalid email or password. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
+    setLoading(true);
     try {
       await signInWithPopup(auth, provider);
       router.push("/dashboard");
     } catch (error) {
       setError("Error signing in with Google. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -39,6 +55,7 @@ export default function Login() {
         
         <button 
           onClick={handleGoogleLogin}
+          disabled={loading}
           className="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 rounded-lg p-3 mb-6 hover:bg-gray-50 transition-colors"
         >
           <svg className="w-5 h-5" viewBox="0 0 48 48">
@@ -86,9 +103,10 @@ export default function Login() {
 
           <button
             type="submit"
+            disabled={loading}
             className="w-full bg-quizlet-blue text-white py-2 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
           >
-            Sign In
+            {loading ? "Signing In..." : "Sign In"}
           </button>
         </form>
 
