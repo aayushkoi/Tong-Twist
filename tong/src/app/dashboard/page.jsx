@@ -107,7 +107,7 @@ export default function Dashboard() {
               <SessionCalendar userId={user.uid} role="learner" />
             </div>
             <div className="bg-white p-6 rounded-lg shadow col-span-2">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900">Upcoming Sessions</h2>
+              {/* <h2 className="text-xl font-semibold mb-4 text-gray-900">Upcoming Sessions</h2> */}
               <SessionList />
             </div>
           </div>
@@ -122,7 +122,7 @@ export default function Dashboard() {
               <SessionCalendar userId={user.uid} role="expert" />
             </div>
             <div className="bg-white p-6 rounded-lg shadow col-span-2">
-              <h2 className="text-xl font-semibold mb-4 text-gray-900">Upcoming Sessions</h2>
+              {/* <h2 className="text-xl font-semibold mb-4 text-gray-900">Upcoming Sessions</h2> */}
               <SessionList />
             </div>
           </div>
